@@ -160,7 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
-      let leftover = ''; 
+      let streamBuffer = ''; 
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -171,33 +171,38 @@ function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = (leftover + chunk).split('\n');
-        leftover = lines.pop() || ''; 
+        streamBuffer += decoder.decode(value, { stream: true });
+        
+        // Split by the formal SSE event separator
+        const events = streamBuffer.split('\n\n');
+        streamBuffer = events.pop() || ''; // Buffer the last incomplete event
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
-          
-          const data = trimmed.replace(/^data:\s*/, '');
-          if (data === '[DONE]') break;
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content || '';
-            if (content) {
-              aiContent += content;
-              setChats(prev => prev.map(c => {
-                if (c.id === chatId) {
-                  const newMsgs = [...c.messages];
-                  newMsgs[newMsgs.length - 1].content = aiContent;
-                  return { ...c, messages: newMsgs };
-                }
-                return c;
-              }));
+        for (const event of events) {
+          const lines = event.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            
+            const dataStr = trimmed.replace(/^data:\s*/, '');
+            if (dataStr === '[DONE]') break;
+            
+            try {
+              const parsed = JSON.parse(dataStr);
+              const content = parsed.choices[0]?.delta?.content || '';
+              if (content) {
+                aiContent += content;
+                setChats(prev => prev.map(c => {
+                  if (c.id === chatId) {
+                    const newMsgs = [...c.messages];
+                    newMsgs[newMsgs.length - 1].content = aiContent;
+                    return { ...c, messages: newMsgs };
+                  }
+                  return c;
+                }));
+              }
+            } catch (e) {
+              console.warn('JSON parsing failed for chunk:', dataStr, e);
             }
-          } catch (e) {
-            console.error('SSE JSON parse error:', e, data);
           }
         }
       }
