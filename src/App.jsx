@@ -160,7 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
-      let leftover = ''; 
+      let streamBuffer = ''; 
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -169,31 +169,28 @@ function App() {
 
       while (true) {
         const { done, value } = await reader.read();
-        
-        const chunk = done ? "" : decoder.decode(value, { stream: true });
-        const allLines = (leftover + chunk).split(/\n/);
-        
-        let linesToProcess = [];
-        if (done) {
-          linesToProcess = allLines;
-          leftover = "";
-        } else {
-          linesToProcess = allLines.slice(0, -1);
-          leftover = allLines[allLines.length - 1];
-        }
+        if (done) break;
 
-        for (const line of linesToProcess) {
+        streamBuffer += decoder.decode(value, { stream: true });
+        
+        // SSE can have multiple 'data: ' lines in one buffer
+        // We separate by newlines and try to process each full line
+        const lines = streamBuffer.split(/\n/);
+        
+        // The last line might be incomplete, keep it for next chunk
+        streamBuffer = lines.pop() || '';
+
+        for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.includes('data:')) continue;
-          
-          if (trimmed.includes('[DONE]')) break;
-          
+          if (trimmed.includes('[DONE]')) continue;
+
           const jsonStart = trimmed.indexOf('{');
           if (jsonStart === -1) continue;
-          
           const jsonStr = trimmed.substring(jsonStart);
-          
+
           try {
+            // Check if it's a valid JSON before parsing
             const parsed = JSON.parse(jsonStr);
             const delta = parsed.choices?.[0]?.delta?.content || "";
             if (delta) {
@@ -211,11 +208,11 @@ function App() {
               }));
             }
           } catch (e) {
-            console.warn('Incomplete JSON part:', jsonStr);
+            // If JSON is incomplete, put the whole line back into streamBuffer
+            // so it can be merged with the next chunk
+            streamBuffer = trimmed + '\n' + streamBuffer;
           }
         }
-        
-        if (done) break;
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
