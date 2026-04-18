@@ -28,27 +28,31 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [usage, setUsage] = useState(null);
-  const [usageLoading, setUsageLoading] = useState(false);
-  const BUDGET = 200;
+  const BUDGET = 204.13; // Total deposit amount
 
-  const checkUsage = async () => {
-    setUsageLoading(true);
-    try {
-      const res = await fetch('/api/usage');
-      const data = await res.json();
-      setUsage(data);
-    } catch (e) {
-      setUsage({ error: '조회 실패' });
-    } finally {
-      setUsageLoading(false);
-    }
-  };
+  // Local usage tracking persisted to localStorage
+  const [totalSpent, setTotalSpent] = useState(() => {
+    return parseFloat(localStorage.getItem('chois-total-spent') || '0');
+  });
 
   // Model pricing per 1M tokens
   const MODEL_PRICING = {
     'gpt-5.4-mini': { input: 0.15, output: 0.60 },
     'gpt-5.4':      { input: 2.50, output: 10.00 },
+  };
+
+  // Add cost from a completed response (estimated)
+  const trackCost = (inputChars, outputChars, model) => {
+    const prices = MODEL_PRICING[model] || MODEL_PRICING['gpt-5.4-mini'];
+    const inputTokens = inputChars / 4;
+    const outputTokens = outputChars / 4;
+    const cost = (inputTokens / 1_000_000) * prices.input
+               + (outputTokens / 1_000_000) * prices.output;
+    setTotalSpent(prev => {
+      const next = prev + cost;
+      localStorage.setItem('chois-total-spent', next.toString());
+      return next;
+    });
   };
 
   // Persist model selection
@@ -236,6 +240,13 @@ function App() {
           }
         }
       }
+      // Track estimated cost after stream completes
+      const inputChars = JSON.stringify(updatedUserMessages).length;
+      const outputChars = aiContent.length;
+      trackCost(inputChars, outputChars, selectedModel === 'auto'
+        ? (inputChars > 2000 ? 'gpt-5.4' : 'gpt-5.4-mini')
+        : selectedModel
+      );
     } catch (error) {
       if (error.name !== 'AbortError') {
         setChats(prev => prev.map(c => {
@@ -287,49 +298,29 @@ function App() {
           ))}
         </div>
 
-        {/* Usage Monitor Section */}
+        {/* Usage Monitor */}
         <div className="usage-monitor">
-          <div className="usage-info">
-            <span>이번 달 사용량</span>
-            {usage && !usage.error && (
-              <span className="usage-cost">${usage.totalCost?.toFixed(4)}</span>
-            )}
+          <div className="usage-label">API 잔여 크레딧</div>
+          <div className="usage-amount">
+            ${(BUDGET - totalSpent).toFixed(2)}
           </div>
-
-          {usage && !usage.error && (
-            <>
-              <div className="usage-bar-bg">
-                <div 
-                  className="usage-bar-fill" 
-                  style={{ width: `${Math.min(100, (usage.totalCost / BUDGET) * 100)}%` }}
-                ></div>
-              </div>
-              <div className="usage-remaining">
-                잔액 ~${(BUDGET - usage.totalCost).toFixed(2)} / ${BUDGET}
-              </div>
-              <div className="usage-tokens">
-                {usage.totalTokens?.toLocaleString()} tokens · {usage.period}
-              </div>
-              {usage.modelBreakdown && Object.entries(usage.modelBreakdown).map(([model, info]) => (
-                <div key={model} className="usage-model-row">
-                  <span>{model}</span>
-                  <span>${info.cost.toFixed(4)}</span>
-                </div>
-              ))}
-            </>
-          )}
-
-          {usage?.error && (
-            <div className="usage-error">{usage.error}</div>
-          )}
-
-          <button 
-            className="usage-check-btn"
-            onClick={checkUsage}
-            disabled={usageLoading}
-          >
-            {usageLoading ? '조회 중...' : '사용량 확인'}
-          </button>
+          <div className="usage-percent">
+            {((BUDGET - totalSpent) / BUDGET * 100).toFixed(1)}% 남음
+          </div>
+          <div className="usage-bar-bg">
+            <div
+              className="usage-bar-fill"
+              style={{ width: `${Math.min(100, ((BUDGET - totalSpent) / BUDGET) * 100)}%` }}
+            />
+          </div>
+          <div className="usage-base">기준: ${BUDGET}</div>
+          <button
+            className="usage-reset-btn"
+            onClick={() => {
+              setTotalSpent(0);
+              localStorage.removeItem('chois-total-spent');
+            }}
+          >추적 초기화</button>
         </div>
       </div>
 
