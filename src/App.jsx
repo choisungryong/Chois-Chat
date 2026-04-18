@@ -160,6 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
+      let streamBuffer = ''; // Buffer for partial SSE lines
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -170,14 +171,16 @@ function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        // Robust SSE parsing
-        const lines = chunk.split('\n');
+        streamBuffer += decoder.decode(value, { stream: true });
+        
+        const lines = streamBuffer.split('\n');
+        streamBuffer = lines.pop() || ''; // Keep the last (potentially partial) line in buffer
+
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith('data: ')) continue;
           
-          const dataStr = trimmed.substring(6); // remove 'data: '
+          const dataStr = trimmed.substring(6);
           if (dataStr === '[DONE]') break;
           
           try {
@@ -195,8 +198,7 @@ function App() {
               }));
             }
           } catch (e) {
-            // Partial JSON or other error, skip and continue
-            console.warn('Stream chunk parse error', e);
+            console.warn('JSON parse error, partial data ignored', e);
           }
         }
       }
