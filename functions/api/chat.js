@@ -42,7 +42,7 @@ export async function onRequestPost(context) {
         model: targetModel,
         messages: [systemMessage, ...messages],
         stream: true,
-        max_tokens: 1000, // Hard limit for cost control
+        max_completion_tokens: 1000, // Fixed for latest model specs
       }),
     });
 
