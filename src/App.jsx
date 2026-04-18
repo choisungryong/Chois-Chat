@@ -160,7 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
-      let streamBuffer = ''; 
+      let leftover = ''; 
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -169,46 +169,53 @@ function App() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        streamBuffer += decoder.decode(value, { stream: true });
         
-        // Match all lines starting with 'data: '
-        const lines = streamBuffer.split(/\r?\n/);
-        streamBuffer = lines.pop() || ''; 
+        const chunk = done ? "" : decoder.decode(value, { stream: true });
+        const allLines = (leftover + chunk).split(/\n/);
+        
+        let linesToProcess = [];
+        if (done) {
+          linesToProcess = allLines;
+          leftover = "";
+        } else {
+          linesToProcess = allLines.slice(0, -1);
+          leftover = allLines[allLines.length - 1];
+        }
 
-        for (const line of lines) {
+        for (const line of linesToProcess) {
           const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
+          if (!trimmed || !trimmed.includes('data:')) continue;
           
-          const jsonStr = trimmed.replace(/^data:\s*/, '');
-          if (jsonStr === '[DONE]') break;
+          if (trimmed.includes('[DONE]')) break;
+          
+          const jsonStart = trimmed.indexOf('{');
+          if (jsonStart === -1) continue;
+          
+          const jsonStr = trimmed.substring(jsonStart);
           
           try {
-            // Only attempt parse if it looks like a complete JSON object
-            if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
-              const parsed = JSON.parse(jsonStr);
-              const chunk = parsed.choices?.[0]?.delta?.content || '';
-              if (chunk) {
-                aiContent += chunk;
-                setChats(prev => prev.map(c => {
-                  if (c.id === chatId) {
-                    const newMsgs = [...c.messages];
-                    newMsgs[newMsgs.length - 1].content = aiContent;
-                    return { ...c, messages: newMsgs };
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content || "";
+            if (delta) {
+              aiContent += delta;
+              setChats(prev => prev.map(c => {
+                if (c.id === chatId) {
+                  const newMsgs = [...c.messages];
+                  const lastIdx = newMsgs.length - 1;
+                  if (newMsgs[lastIdx]) {
+                    newMsgs[lastIdx] = { ...newMsgs[lastIdx], content: aiContent };
                   }
-                  return c;
-                }));
-              }
-            } else {
-              // If not enclosed in {}, put it back to buffer
-              streamBuffer = trimmed + '\n' + streamBuffer;
+                  return { ...c, messages: newMsgs };
+                }
+                return c;
+              }));
             }
           } catch (e) {
-            // Keep in buffer if it seems incomplete
-            streamBuffer = trimmed + '\n' + streamBuffer;
+            console.warn('Incomplete JSON part:', jsonStr);
           }
         }
+        
+        if (done) break;
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
