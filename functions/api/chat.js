@@ -1,6 +1,6 @@
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { messages } = await request.json();
+  const { messages, model } = await request.json();
 
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -10,6 +10,27 @@ export async function onRequestPost(context) {
     });
   }
 
+  // Cost-Optimized Smart Routing
+  let targetModel = model;
+  if (model === 'auto') {
+    const lastMessage = messages[messages.length - 1];
+    const isMultiModal = Array.isArray(lastMessage.content) && lastMessage.content.some(c => c.type === 'image_url');
+    const isLongContext = JSON.stringify(messages).length > 2000;
+    
+    // Escalate to Heavy if Image or Long Context
+    if (isMultiModal || isLongContext) {
+      targetModel = "gpt-5.4";
+    } else {
+      targetModel = "gpt-5.4-mini";
+    }
+  }
+
+  // System Prompt for Cost Saving
+  const systemMessage = {
+    role: "system",
+    content: "너는 비용 효율적이고 핵심 위주로 답변하는 유능한 비서야. 사용자가 자세한 설명을 요구하지 않는 한, 5줄 이내로 핵심만 명확하게 답변해줘."
+  };
+
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -18,9 +39,10 @@ export async function onRequestPost(context) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o", // User requested GPT-5.4 equivalent/latest. Using 4o as placeholder for current highest, user can change env var if specific endpoint exists
-        messages: messages,
+        model: targetModel,
+        messages: [systemMessage, ...messages],
         stream: true,
+        max_tokens: 1000, // Hard limit for cost control
       }),
     });
 
