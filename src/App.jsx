@@ -28,7 +28,28 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [usage, setUsage] = useState(null); // API Usage state
+  const [usage, setUsage] = useState(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const BUDGET = 200;
+
+  const checkUsage = async () => {
+    setUsageLoading(true);
+    try {
+      const res = await fetch('/api/usage');
+      const data = await res.json();
+      setUsage(data);
+    } catch (e) {
+      setUsage({ error: '조회 실패' });
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
+  // Model pricing per 1M tokens
+  const MODEL_PRICING = {
+    'gpt-5.4-mini': { input: 0.15, output: 0.60 },
+    'gpt-5.4':      { input: 2.50, output: 10.00 },
+  };
 
   // Persist model selection
   useEffect(() => {
@@ -43,21 +64,16 @@ function App() {
     }
   }, [chats]);
 
-  // Fetch API Usage
+  // Persist usage
   useEffect(() => {
-    const fetchUsage = async () => {
-      try {
-        const res = await fetch('/api/usage');
-        const data = await res.json();
-        if (!data.error) setUsage(data);
-      } catch (e) {
-        console.warn('Could not fetch usage info', e);
-      }
-    };
-    fetchUsage();
-    const interval = setInterval(fetchUsage, 600000); // Update every 10 mins
-    return () => clearInterval(interval);
-  }, []);
+    localStorage.setItem('chois-usage', JSON.stringify(usage));
+  }, [usage]);
+
+  // Model pricing per 1M tokens
+  const MODEL_PRICING = {
+    'gpt-5.4-mini': { input: 0.15, output: 0.60 },
+    'gpt-5.4':      { input: 2.50, output: 10.00 },
+  };
 
   // Scroll to bottom
   useEffect(() => {
@@ -281,23 +297,49 @@ function App() {
         </div>
 
         {/* Usage Monitor Section */}
-        {usage && (
-          <div className="usage-monitor">
-            <div className="usage-info">
-              <span>Usage</span>
-              <span>${usage.total_used.toFixed(2)} / ${usage.total_granted.toFixed(2)}</span>
-            </div>
-            <div className="usage-bar-bg">
-              <div 
-                className="usage-bar-fill" 
-                style={{ width: `${Math.min(100, (usage.total_used / usage.total_granted) * 100)}%` }}
-              ></div>
-            </div>
-            <div className="usage-remaining">
-              Remaining: ${usage.remaining.toFixed(2)}
-            </div>
+        <div className="usage-monitor">
+          <div className="usage-info">
+            <span>이번 달 사용량</span>
+            {usage && !usage.error && (
+              <span className="usage-cost">${usage.totalCost?.toFixed(4)}</span>
+            )}
           </div>
-        )}
+
+          {usage && !usage.error && (
+            <>
+              <div className="usage-bar-bg">
+                <div 
+                  className="usage-bar-fill" 
+                  style={{ width: `${Math.min(100, (usage.totalCost / BUDGET) * 100)}%` }}
+                ></div>
+              </div>
+              <div className="usage-remaining">
+                잔액 ~${(BUDGET - usage.totalCost).toFixed(2)} / ${BUDGET}
+              </div>
+              <div className="usage-tokens">
+                {usage.totalTokens?.toLocaleString()} tokens · {usage.period}
+              </div>
+              {usage.modelBreakdown && Object.entries(usage.modelBreakdown).map(([model, info]) => (
+                <div key={model} className="usage-model-row">
+                  <span>{model}</span>
+                  <span>${info.cost.toFixed(4)}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {usage?.error && (
+            <div className="usage-error">{usage.error}</div>
+          )}
+
+          <button 
+            className="usage-check-btn"
+            onClick={checkUsage}
+            disabled={usageLoading}
+          >
+            {usageLoading ? '조회 중...' : '사용량 확인'}
+          </button>
+        </div>
       </div>
 
       <div className="main-content">

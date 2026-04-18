@@ -53,7 +53,7 @@ Always aim to provide the quality and depth of response that a senior expert wou
         model: targetModel,
         messages: [systemMessage, ...messages],
         stream: true,
-        max_completion_tokens: 1000, // Fixed for latest model specs
+        max_completion_tokens: 4000, // Sufficient for detailed responses
       }),
     });
 
