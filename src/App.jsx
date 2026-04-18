@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Plus, User, Bot, Paperclip, X, Square } from 'lucide-react';
+import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare } from 'lucide-react';
 import './index.css';
 
 const MODELS = [
@@ -10,7 +10,11 @@ const MODELS = [
 ];
 
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [chats, setChats] = useState(() => {
+    const saved = localStorage.getItem('chois-chats');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('auto');
   const [attachments, setAttachments] = useState([]);
@@ -21,11 +25,20 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
 
+  // Auto-save to localStorage
+  useEffect(() => {
+    localStorage.setItem('chois-chats', JSON.stringify(chats));
+  }, [chats]);
+
+  // Scroll to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [currentChatId, chats]);
+
+  const currentChat = chats.find(c => c.id === currentChatId) || null;
+  const messages = currentChat ? currentChat.messages : [];
 
   const handleInput = (e) => {
     setInput(e.target.value);
@@ -49,6 +62,27 @@ function App() {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const startNewChat = () => {
+    const newId = Date.now().toString();
+    const newChat = {
+      id: newId,
+      title: '새로운 대화',
+      messages: [],
+      model: selectedModel,
+      timestamp: Date.now()
+    };
+    setChats(prev => [newChat, ...prev]);
+    setCurrentChatId(newId);
+    setAttachments([]);
+    setInput('');
+  };
+
+  const deleteChat = (e, id) => {
+    e.stopPropagation();
+    setChats(prev => prev.filter(c => c.id !== id));
+    if (currentChatId === id) setCurrentChatId(null);
+  };
+
   const handleStop = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -59,9 +93,23 @@ function App() {
   const handleSend = async () => {
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
+    let chatId = currentChatId;
+    if (!chatId) {
+      const newId = Date.now().toString();
+      const newChat = {
+        id: newId,
+        title: input.trim().substring(0, 20) || '새로운 대화',
+        messages: [],
+        model: selectedModel,
+        timestamp: Date.now()
+      };
+      setChats(prev => [newChat, ...prev]);
+      setCurrentChatId(newId);
+      chatId = newId;
+    }
+
     abortControllerRef.current = new AbortController();
     
-    // Construct user message content
     let content = [];
     if (input.trim()) content.push({ type: 'text', text: input });
     attachments.forEach(att => {
@@ -69,9 +117,20 @@ function App() {
     });
 
     const userMessage = { role: 'user', content };
-    const newMessages = [...messages, userMessage];
+    const updatedUserMessages = [...messages, userMessage];
     
-    setMessages(newMessages);
+    // Update local state and title if first message
+    setChats(prev => prev.map(c => {
+      if (c.id === chatId) {
+        return { 
+          ...c, 
+          messages: updatedUserMessages,
+          title: c.messages.length === 0 ? (input.trim().substring(0, 20) || '이미지 대화') : c.title
+        };
+      }
+      return c;
+    }));
+
     setInput('');
     setAttachments([]);
     setIsLoading(true);
@@ -83,7 +142,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          messages: newMessages,
+          messages: updatedUserMessages,
           model: selectedModel
         }),
         signal: abortControllerRef.current.signal
@@ -95,7 +154,10 @@ function App() {
       const decoder = new TextDecoder();
       let aiContent = '';
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      // Initialize AI message
+      setChats(prev => prev.map(c => 
+        c.id === chatId ? { ...c, messages: [...c.messages, { role: 'assistant', content: '' }] } : c
+      ));
 
       while (true) {
         const { done, value } = await reader.read();
@@ -112,18 +174,26 @@ function App() {
               const delta = data.choices[0].delta?.content || '';
               aiContent += delta;
               
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1].content = aiContent;
-                return updated;
-              });
+              setChats(prev => prev.map(c => {
+                if (c.id === chatId) {
+                  const newMsgs = [...c.messages];
+                  newMsgs[newMsgs.length - 1].content = aiContent;
+                  return { ...c, messages: newMsgs };
+                }
+                return c;
+              }));
             } catch (e) {}
           }
         }
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        setMessages(prev => [...prev, { role: 'assistant', content: '오류가 발생했습니다: ' + error.message }]);
+        setChats(prev => prev.map(c => {
+          if (c.id === chatId) {
+            return { ...c, messages: [...c.messages, { role: 'assistant', content: '오류: ' + error.message }] };
+          }
+          return c;
+        }));
       }
     } finally {
       setIsLoading(false);
@@ -140,10 +210,25 @@ function App() {
   return (
     <>
       <div className="sidebar">
-        <button className="new-chat-btn" onClick={() => setMessages([])}>
+        <button className="new-chat-btn" onClick={startNewChat}>
           <Plus size={16} />
           새 채팅
         </button>
+        <div className="chat-history">
+          {chats.map(chat => (
+            <div 
+              key={chat.id} 
+              className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
+              onClick={() => setCurrentChatId(chat.id)}
+            >
+              <MessageSquare size={16} />
+              <span className="history-title">{chat.title}</span>
+              <button className="delete-chat-btn" onClick={(e) => deleteChat(e, chat.id)}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="main-content">
@@ -154,19 +239,18 @@ function App() {
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
-            <span className="model-desc">{MODELS.find(m => m.id === selectedModel)?.desc}</span>
           </div>
         </header>
 
         <div className="chat-container" ref={chatContainerRef}>
-          {messages.length === 0 ? (
+          {!currentChat || messages.length === 0 ? (
             <div className="welcome-screen">
               <h1>Chois-Chat</h1>
               <p>비용 최적화 지능형 챗봇 서비스</p>
             </div>
           ) : (
             messages.map((msg, i) => (
-              <div key={i} className={`message-row ${msg.role === 'assistant' ? 'ai' : ''}`}>
+              <div key={i} className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
                 <div className="message-content">
                   <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
                     {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
