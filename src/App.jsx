@@ -160,7 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
-      let streamBuffer = ''; 
+      let buffer = '';
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -171,31 +171,26 @@ function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        streamBuffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
         
-        // SSE can have multiple 'data: ' lines in one buffer
-        // We separate by newlines and try to process each full line
-        const lines = streamBuffer.split(/\n/);
-        
-        // The last line might be incomplete, keep it for next chunk
-        streamBuffer = lines.pop() || '';
+        // Find all complete SSE events (separated by newline)
+        let parts = buffer.split('\n');
+        buffer = parts.pop() || ''; // Keep the incomplete line
 
-        for (const line of lines) {
+        for (const line of parts) {
           const trimmed = line.trim();
-          if (!trimmed || !trimmed.includes('data:')) continue;
-          if (trimmed.includes('[DONE]')) continue;
-
-          const jsonStart = trimmed.indexOf('{');
-          if (jsonStart === -1) continue;
-          const jsonStr = trimmed.substring(jsonStart);
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+          
+          const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
+          if (jsonStr === '[DONE]') continue;
 
           try {
-            // Check if it's a valid JSON before parsing
             const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content || "";
-            if (delta) {
-              aiContent += delta;
-              setChats(prev => prev.map(c => {
+            const content = parsed.choices?.[0]?.delta?.content || "";
+            if (content) {
+              aiContent += content;
+              // Functional update for precise state management
+              setChats(currentChats => currentChats.map(c => {
                 if (c.id === chatId) {
                   const newMsgs = [...c.messages];
                   const lastIdx = newMsgs.length - 1;
@@ -208,9 +203,7 @@ function App() {
               }));
             }
           } catch (e) {
-            // If JSON is incomplete, put the whole line back into streamBuffer
-            // so it can be merged with the next chunk
-            streamBuffer = trimmed + '\n' + streamBuffer;
+            // If parse fails, it might be a split JSON string within a data line
           }
         }
       }
