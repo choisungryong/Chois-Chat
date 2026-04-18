@@ -160,7 +160,7 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aiContent = '';
-      let streamBuffer = ''; // Buffer for partial SSE lines
+      let leftover = ''; 
 
       // Initialize AI message
       setChats(prev => prev.map(c => 
@@ -171,23 +171,22 @@ function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        streamBuffer += decoder.decode(value, { stream: true });
-        
-        const lines = streamBuffer.split('\n');
-        streamBuffer = lines.pop() || ''; // Keep the last (potentially partial) line in buffer
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = (leftover + chunk).split('\n');
+        leftover = lines.pop() || ''; 
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
           
-          const dataStr = trimmed.substring(6);
-          if (dataStr === '[DONE]') break;
+          const data = trimmed.replace(/^data:\s*/, '');
+          if (data === '[DONE]') break;
           
           try {
-            const data = JSON.parse(dataStr);
-            const delta = data.choices[0].delta?.content || '';
-            if (delta) {
-              aiContent += delta;
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content || '';
+            if (content) {
+              aiContent += content;
               setChats(prev => prev.map(c => {
                 if (c.id === chatId) {
                   const newMsgs = [...c.messages];
@@ -198,7 +197,7 @@ function App() {
               }));
             }
           } catch (e) {
-            console.warn('JSON parse error, partial data ignored', e);
+            console.error('SSE JSON parse error:', e, data);
           }
         }
       }
