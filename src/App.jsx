@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare } from 'lucide-react';
 import './index.css';
 
@@ -26,16 +27,37 @@ function App() {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [usage, setUsage] = useState(null); // API Usage state
 
-  // Auto-save model selection
+  // Persist model selection
   useEffect(() => {
     localStorage.setItem('chois-selected-model', selectedModel);
   }, [selectedModel]);
 
-  // Auto-save chats to localStorage
+  // Persistent storage for chats
   useEffect(() => {
     localStorage.setItem('chois-chats', JSON.stringify(chats));
+    if (chats.length > 0 && !currentChatId) {
+      setCurrentChatId(chats[0].id);
+    }
   }, [chats]);
+
+  // Fetch API Usage
+  useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const res = await fetch('/api/usage');
+        const data = await res.json();
+        if (!data.error) setUsage(data);
+      } catch (e) {
+        console.warn('Could not fetch usage info', e);
+      }
+    };
+    fetchUsage();
+    const interval = setInterval(fetchUsage, 600000); // Update every 10 mins
+    return () => clearInterval(interval);
+  }, []);
 
   // Scroll to bottom
   useEffect(() => {
@@ -230,26 +252,52 @@ function App() {
 
   return (
     <>
-      <div className="sidebar">
+      <div className={`sidebar ${isSidebarOpen ? '' : 'closed'}`}>
         <button className="new-chat-btn" onClick={startNewChat}>
-          <Plus size={16} />
-          새 채팅
+          <Plus size={18} />
+          <span>새 채팅</span>
         </button>
         <div className="chat-history">
           {chats.map(chat => (
             <div 
               key={chat.id} 
-              className={`history-item ${chat.id === currentChatId ? 'active' : ''}`}
+              className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
               onClick={() => setCurrentChatId(chat.id)}
             >
               <MessageSquare size={16} />
               <span className="history-title">{chat.title}</span>
-              <button className="delete-chat-btn" onClick={(e) => deleteChat(e, chat.id)}>
+              <button 
+                className="delete-chat-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setChats(chats.filter(c => c.id !== chat.id));
+                  if (currentChatId === chat.id) setCurrentChatId(null);
+                }}
+              >
                 <Trash2 size={14} />
               </button>
             </div>
           ))}
         </div>
+
+        {/* Usage Monitor Section */}
+        {usage && (
+          <div className="usage-monitor">
+            <div className="usage-info">
+              <span>Usage</span>
+              <span>${usage.total_used.toFixed(2)} / ${usage.total_granted.toFixed(2)}</span>
+            </div>
+            <div className="usage-bar-bg">
+              <div 
+                className="usage-bar-fill" 
+                style={{ width: `${Math.min(100, (usage.total_used / usage.total_granted) * 100)}%` }}
+              ></div>
+            </div>
+            <div className="usage-remaining">
+              Remaining: ${usage.remaining.toFixed(2)}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="main-content">
@@ -280,12 +328,12 @@ function App() {
                     {Array.isArray(msg.content) ? (
                       msg.content.map((c, j) => (
                         <div key={j}>
-                          {c.type === 'text' && <ReactMarkdown>{c.text}</ReactMarkdown>}
+                          {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.text}</ReactMarkdown>}
                           {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
                         </div>
                       ))
                     ) : (
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                     )}
                   </div>
                 </div>
