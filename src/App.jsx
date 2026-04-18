@@ -270,7 +270,14 @@ function App() {
 
   return (
     <>
-      <div className={`sidebar ${isSidebarOpen ? '' : 'closed'}`}>
+      {/* Mobile overlay backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <button className="new-chat-btn" onClick={startNewChat}>
           <Plus size={18} />
           <span>새 채팅</span>
@@ -326,6 +333,14 @@ function App() {
 
       <div className="main-content">
         <header className="chat-header">
+          {/* Hamburger for mobile */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setIsSidebarOpen(prev => !prev)}
+            aria-label="Toggle sidebar"
+          >
+            <span /><span /><span />
+          </button>
           <div className="model-selector">
             <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
               {MODELS.map(m => (
