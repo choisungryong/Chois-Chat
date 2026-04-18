@@ -1,0 +1,6 @@
+name = "chois-chat"
+compatibility_date = "2024-04-18"
+pages_build_output_dir = "dist"
+
+[vars]
+# OPENAI_API_KEY = "your-key-here" (Should be set in Cloudflare Dashboard for security)
