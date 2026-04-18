@@ -32,6 +32,10 @@ function App() {
     return localStorage.getItem('chois-story-bible') || '';
   });
   const [isStoryBibleOpen, setIsStoryBibleOpen] = useState(false);
+  const [masterPrompt, setMasterPrompt] = useState(() => {
+    return localStorage.getItem('chois-master-prompt') || '';
+  });
+  const [isMasterPromptOpen, setIsMasterPromptOpen] = useState(false);
   const BUDGET = 204.13; // Total deposit amount
 
   // Local usage tracking persisted to localStorage
@@ -68,6 +72,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem('chois-story-bible', storyBible);
   }, [storyBible]);
+
+  // Persist master prompt
+  useEffect(() => {
+    localStorage.setItem('chois-master-prompt', masterPrompt);
+  }, [masterPrompt]);
 
   // Persistent storage for chats
   useEffect(() => {
@@ -193,7 +202,8 @@ function App() {
         body: JSON.stringify({ 
           messages: updatedUserMessages,
           model: selectedModel,
-          storyBible: storyBible
+          storyBible: storyBible,
+          masterPrompt: masterPrompt
         }),
         signal: abortControllerRef.current.signal
       });
@@ -329,6 +339,24 @@ function App() {
               placeholder="세계관, 인물 설정, 줄거리 요약 등 고정된 맥락을 입력하세요..."
               value={storyBible}
               onChange={(e) => setStoryBible(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Master Prompt (Behavior Instructions) Section */}
+        <div className={`story-bible-section master-prompt-section ${isMasterPromptOpen ? 'expanded' : ''}`}>
+          <button
+            className="story-bible-toggle"
+            onClick={() => setIsMasterPromptOpen(!isMasterPromptOpen)}
+          >
+            <Bot size={16} />
+            <span>🖋️ 마스터 프롬프트</span>
+          </button>
+          <div className="story-bible-content">
+            <textarea
+              placeholder="문체, 서술 방식, 금기사항 등 AI의 행동 지침을 입력하세요..."
+              value={masterPrompt}
+              onChange={(e) => setMasterPrompt(e.target.value)}
             />
           </div>
         </div>

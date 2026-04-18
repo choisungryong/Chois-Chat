@@ -1,6 +1,6 @@
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { messages, model, storyBible } = await request.json();
+  const { messages, model, storyBible, masterPrompt } = await request.json();
 
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -41,9 +41,14 @@ When answering questions, follow these principles:
 
 Always aim to provide the quality and depth of response that a senior expert would give.`;
 
-  // Inject Story Bible if exists
+  // Inject Story Bible at the top (world/character context)
   if (storyBible && storyBible.trim()) {
     systemContent = `[FIXED CONTEXT: STORY BIBLE]\n${storyBible}\n\n${systemContent}`;
+  }
+
+  // Inject Master Prompt at the bottom (behavior/style instructions)
+  if (masterPrompt && masterPrompt.trim()) {
+    systemContent = `${systemContent}\n\n[MASTER PROMPT: BEHAVIOR INSTRUCTIONS]\n${masterPrompt}`;
   }
 
   const systemMessage = {

@@ -180,6 +180,18 @@ body {
   color: rgba(255, 255, 255, 0.15);
 }
 
+/* Master Prompt: amber/gold color variant */
+.master-prompt-section.expanded {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.master-prompt-section.expanded .story-bible-toggle {
+  color: #f59e0b;
+}
+.master-prompt-section .story-bible-content textarea:focus {
+  border-color: #f59e0b;
+}
+
 .usage-label {
   font-size: 0.7rem;
   text-transform: uppercase;
