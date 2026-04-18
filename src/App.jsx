@@ -64,16 +64,7 @@ function App() {
     }
   }, [chats]);
 
-  // Persist usage
-  useEffect(() => {
-    localStorage.setItem('chois-usage', JSON.stringify(usage));
-  }, [usage]);
 
-  // Model pricing per 1M tokens
-  const MODEL_PRICING = {
-    'gpt-5.4-mini': { input: 0.15, output: 0.60 },
-    'gpt-5.4':      { input: 2.50, output: 10.00 },
-  };
 
   // Scroll to bottom
   useEffect(() => {
