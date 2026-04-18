@@ -28,6 +28,10 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [storyBible, setStoryBible] = useState(() => {
+    return localStorage.getItem('chois-story-bible') || '';
+  });
+  const [isStoryBibleOpen, setIsStoryBibleOpen] = useState(false);
   const BUDGET = 204.13; // Total deposit amount
 
   // Local usage tracking persisted to localStorage
@@ -59,6 +63,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem('chois-selected-model', selectedModel);
   }, [selectedModel]);
+
+  // Persist story bible
+  useEffect(() => {
+    localStorage.setItem('chois-story-bible', storyBible);
+  }, [storyBible]);
 
   // Persistent storage for chats
   useEffect(() => {
@@ -183,7 +192,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: updatedUserMessages,
-          model: selectedModel
+          model: selectedModel,
+          storyBible: storyBible
         }),
         signal: abortControllerRef.current.signal
       });
@@ -303,6 +313,24 @@ function App() {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Story Bible (Fixed Context) Section */}
+        <div className={`story-bible-section ${isStoryBibleOpen ? 'expanded' : ''}`}>
+          <button 
+            className="story-bible-toggle"
+            onClick={() => setIsStoryBibleOpen(!isStoryBibleOpen)}
+          >
+            <Bot size={16} />
+            <span>📖 스토리 바이블</span>
+          </button>
+          <div className="story-bible-content">
+            <textarea
+              placeholder="세계관, 인물 설정, 줄거리 요약 등 고정된 맥락을 입력하세요..."
+              value={storyBible}
+              onChange={(e) => setStoryBible(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Usage Monitor */}

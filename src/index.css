@@ -111,6 +111,75 @@ body {
   border-radius: 10px;
 }
 
+/* ─── STORY BIBLE SECTION ────────────────────────────────── */
+.story-bible-section {
+  margin-bottom: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.story-bible-section.expanded {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(16, 163, 127, 0.3);
+}
+
+.story-bible-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.story-bible-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.story-bible-section.expanded .story-bible-toggle {
+  color: var(--accent-color);
+}
+
+.story-bible-content {
+  max-height: 0;
+  transition: max-height 0.3s ease;
+  padding: 0 10px;
+}
+
+.story-bible-section.expanded .story-bible-content {
+  max-height: 300px;
+  padding-bottom: 12px;
+}
+
+.story-bible-content textarea {
+  width: 100%;
+  height: 200px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+.story-bible-content textarea:focus {
+  border-color: var(--accent-color);
+  background: rgba(0, 0, 0, 0.3);
+}
+.story-bible-content textarea::placeholder {
+  color: rgba(255, 255, 255, 0.15);
+}
+
 .usage-label {
   font-size: 0.7rem;
   text-transform: uppercase;

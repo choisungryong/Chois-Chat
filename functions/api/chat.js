@@ -1,6 +1,6 @@
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { messages, model } = await request.json();
+  const { messages, model, storyBible } = await request.json();
 
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -15,7 +15,9 @@ export async function onRequestPost(context) {
   if (model === 'auto') {
     const lastMessage = messages[messages.length - 1];
     const isMultiModal = Array.isArray(lastMessage.content) && lastMessage.content.some(c => c.type === 'image_url');
-    const isLongContext = JSON.stringify(messages).length > 2000;
+    // Calculate context length including Story Bible
+    const contextLength = JSON.stringify(messages).length + (storyBible ? storyBible.length : 0);
+    const isLongContext = contextLength > 2000;
     
     // Escalate to Heavy if Image or Long Context
     if (isMultiModal || isLongContext) {
@@ -26,9 +28,7 @@ export async function onRequestPost(context) {
   }
 
   // System Prompt - High Quality, Structured Responses
-  const systemMessage = {
-    role: "system",
-    content: `You are a helpful, expert-level AI assistant. Your current model is "${targetModel}".
+  let systemContent = `You are a helpful, expert-level AI assistant. Your current model is "${targetModel}".
 
 When answering questions, follow these principles:
 - **Use rich Markdown formatting**: Use headers (##, ###), bold (**text**), bullet lists, numbered lists, horizontal rules (---), and code blocks where appropriate.
@@ -39,7 +39,16 @@ When answering questions, follow these principles:
 - **Be direct and confident**: Lead with the key answer, then provide supporting details.
 - **Language**: Respond in the same language the user writes in (Korean if they write in Korean).
 
-Always aim to provide the quality and depth of response that a senior expert would give.`
+Always aim to provide the quality and depth of response that a senior expert would give.`;
+
+  // Inject Story Bible if exists
+  if (storyBible && storyBible.trim()) {
+    systemContent = `[FIXED CONTEXT: STORY BIBLE]\n${storyBible}\n\n${systemContent}`;
+  }
+
+  const systemMessage = {
+    role: "system",
+    content: systemContent
   };
 
   try {
