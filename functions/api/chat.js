@@ -25,10 +25,10 @@ export async function onRequestPost(context) {
     }
   }
 
-  // System Prompt for Cost Saving
+  // System Prompt for Identity and Cost Saving
   const systemMessage = {
     role: "system",
-    content: "너는 비용 효율적이고 핵심 위주로 답변하는 유능한 비서야. 사용자가 자세한 설명을 요구하지 않는 한, 5줄 이내로 핵심만 명확하게 답변해줘."
+    content: `너는 비용 효율적이고 핵심 위주로 답변하는 유능한 비서야. 현재 네가 사용하는 모델명은 "${targetModel}"이야. 사용자가 자세한 설명을 요구하지 않는 한, 5줄 이내로 핵심만 명확하게 답변해줘.`
   };
 
   try {
