@@ -16,7 +16,9 @@ function App() {
   });
   const [currentChatId, setCurrentChatId] = useState(null);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('auto');
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('chois-selected-model') || 'auto';
+  });
   const [attachments, setAttachments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -25,7 +27,12 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Auto-save to localStorage
+  // Auto-save model selection
+  useEffect(() => {
+    localStorage.setItem('chois-selected-model', selectedModel);
+  }, [selectedModel]);
+
+  // Auto-save chats to localStorage
   useEffect(() => {
     localStorage.setItem('chois-chats', JSON.stringify(chats));
   }, [chats]);
@@ -163,17 +170,21 @@ function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
+        const chunk = decoder.decode(value, { stream: true });
+        // Robust SSE parsing
         const lines = chunk.split('\n');
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') break;
-            try {
-              const data = JSON.parse(dataStr);
-              const delta = data.choices[0].delta?.content || '';
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          
+          const dataStr = trimmed.substring(6); // remove 'data: '
+          if (dataStr === '[DONE]') break;
+          
+          try {
+            const data = JSON.parse(dataStr);
+            const delta = data.choices[0].delta?.content || '';
+            if (delta) {
               aiContent += delta;
-              
               setChats(prev => prev.map(c => {
                 if (c.id === chatId) {
                   const newMsgs = [...c.messages];
@@ -182,7 +193,10 @@ function App() {
                 }
                 return c;
               }));
-            } catch (e) {}
+            }
+          } catch (e) {
+            // Partial JSON or other error, skip and continue
+            console.warn('Stream chunk parse error', e);
           }
         }
       }
