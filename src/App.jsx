@@ -173,24 +173,24 @@ function App() {
 
         streamBuffer += decoder.decode(value, { stream: true });
         
-        // Split by the formal SSE event separator
-        const events = streamBuffer.split('\n\n');
-        streamBuffer = events.pop() || ''; // Buffer the last incomplete event
+        // Match all lines starting with 'data: '
+        const lines = streamBuffer.split(/\r?\n/);
+        streamBuffer = lines.pop() || ''; 
 
-        for (const event of events) {
-          const lines = event.split('\n');
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            
-            const dataStr = trimmed.replace(/^data:\s*/, '');
-            if (dataStr === '[DONE]') break;
-            
-            try {
-              const parsed = JSON.parse(dataStr);
-              const content = parsed.choices[0]?.delta?.content || '';
-              if (content) {
-                aiContent += content;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+          
+          const jsonStr = trimmed.replace(/^data:\s*/, '');
+          if (jsonStr === '[DONE]') break;
+          
+          try {
+            // Only attempt parse if it looks like a complete JSON object
+            if (jsonStr.startsWith('{') && jsonStr.endsWith('}')) {
+              const parsed = JSON.parse(jsonStr);
+              const chunk = parsed.choices?.[0]?.delta?.content || '';
+              if (chunk) {
+                aiContent += chunk;
                 setChats(prev => prev.map(c => {
                   if (c.id === chatId) {
                     const newMsgs = [...c.messages];
@@ -200,9 +200,13 @@ function App() {
                   return c;
                 }));
               }
-            } catch (e) {
-              console.warn('JSON parsing failed for chunk:', dataStr, e);
+            } else {
+              // If not enclosed in {}, put it back to buffer
+              streamBuffer = trimmed + '\n' + streamBuffer;
             }
+          } catch (e) {
+            // Keep in buffer if it seems incomplete
+            streamBuffer = trimmed + '\n' + streamBuffer;
           }
         }
       }
