@@ -21,12 +21,12 @@ body {
   background: var(--bg-main);
   color: var(--text-primary);
   font-family: var(--font-main);
-  height: 100vh;
+  height: 100dvh; /* 모바일 브라우저 주소창/하단바 이슈 해결을 위해 dvh 사용 */
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-#root { display: flex; height: 100vh; width: 100vw; }
+#root { display: flex; height: 100dvh; width: 100vw; }
 
 /* ─── SIDEBAR ─────────────────────────────────────────────── */
 .sidebar {

@@ -49,13 +49,28 @@ function App() {
     'gpt-5.4':      { input: 2.50, output: 10.00 },
   };
 
-  // Add cost from a completed response (estimated)
-  const trackCost = (inputChars, outputChars, model) => {
+  // Add cost from a completed response (한국어 특성 반영된 근사 토큰 계산)
+  const trackCost = (inputText, outputText, model) => {
     const prices = MODEL_PRICING[model] || MODEL_PRICING['gpt-5.4-mini'];
-    const inputTokens = inputChars / 4;
-    const outputTokens = outputChars / 4;
+    
+    // 단순 글자수/4 가 아닌, 한글(비Ascii)은 1.5토큰, 영어는 4자당 1토큰으로 현실화 (요금 추적 오차율 축소)
+    const estimateTokens = (text) => {
+      if (!text) return 0;
+      let asciiCount = 0;
+      let nonAsciiCount = 0;
+      for (let i = 0; i < text.length; i++) {
+        if (text.charCodeAt(i) <= 127) asciiCount++;
+        else nonAsciiCount++;
+      }
+      return (asciiCount / 4) + (nonAsciiCount * 1.5);
+    };
+
+    const inputTokens = estimateTokens(inputText);
+    const outputTokens = estimateTokens(outputText);
+
     const cost = (inputTokens / 1_000_000) * prices.input
                + (outputTokens / 1_000_000) * prices.output;
+               
     setTotalSpent(prev => {
       const next = prev + cost;
       localStorage.setItem('chois-total-spent', next.toString());
@@ -167,6 +182,7 @@ function App() {
     setCurrentChatId(newId);
     setAttachments([]);
     setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'; // 새 대화 시 입력창 크기 리셋
   };
 
   const deleteChat = (e, id) => {
@@ -300,10 +316,9 @@ function App() {
         }
       }
       // Track estimated cost after stream completes
-      const inputChars = JSON.stringify(updatedUserMessages).length;
-      const outputChars = aiContent.length;
-      trackCost(inputChars, outputChars, selectedModel === 'auto'
-        ? (inputChars > 2000 ? 'gpt-5.4' : 'gpt-5.4-mini')
+      const fullInputText = JSON.stringify(updatedUserMessages) + (storyBible || '') + (masterPrompt || '');
+      trackCost(fullInputText, aiContent, selectedModel === 'auto'
+        ? ((fullInputText.length > 30000 || attachments.length > 0) ? 'gpt-5.4' : 'gpt-5.4-mini')
         : selectedModel
       );
     } catch (error) {
