@@ -398,13 +398,24 @@ function App() {
 
         {/* Story Bible (Fixed Context) Section */}
         <div className={`story-bible-section ${isStoryBibleOpen ? 'expanded' : ''}`}>
-          <button 
-            className="story-bible-toggle"
-            onClick={() => setIsStoryBibleOpen(!isStoryBibleOpen)}
-          >
-            <Bot size={16} />
-            <span>📖 스토리 바이블</span>
-          </button>
+          <div className="story-bible-header">
+            <button 
+              className="story-bible-toggle"
+              onClick={() => setIsStoryBibleOpen(!isStoryBibleOpen)}
+            >
+              <Bot size={16} />
+              <span>📖 스토리 바이블</span>
+            </button>
+            {isStoryBibleOpen && storyBible.trim() && (
+              <button 
+                className="section-clear-btn" 
+                onClick={(e) => { e.stopPropagation(); setStoryBible(''); }}
+                title="전체 삭제"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
           <div className="story-bible-content">
             <textarea
               placeholder="세계관, 인물 설정, 줄거리 요약 등 고정된 맥락을 입력하세요..."
@@ -416,13 +427,24 @@ function App() {
 
         {/* Master Prompt (Behavior Instructions) Section */}
         <div className={`story-bible-section master-prompt-section ${isMasterPromptOpen ? 'expanded' : ''}`}>
-          <button
-            className="story-bible-toggle"
-            onClick={() => setIsMasterPromptOpen(!isMasterPromptOpen)}
-          >
-            <Bot size={16} />
-            <span>🖋️ 마스터 프롬프트</span>
-          </button>
+          <div className="story-bible-header">
+            <button
+              className="story-bible-toggle"
+              onClick={() => setIsMasterPromptOpen(!isMasterPromptOpen)}
+            >
+              <Bot size={16} />
+              <span>🖋️ 마스터 프롬프트</span>
+            </button>
+            {isMasterPromptOpen && masterPrompt.trim() && (
+              <button 
+                className="section-clear-btn" 
+                onClick={(e) => { e.stopPropagation(); setMasterPrompt(''); }}
+                title="전체 삭제"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
           <div className="story-bible-content">
             <textarea
               placeholder="문체, 서술 방식, 금기사항 등 AI의 행동 지침을 입력하세요..."

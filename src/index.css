@@ -126,8 +126,15 @@ body {
   border-color: rgba(16, 163, 127, 0.3);
 }
 
+.story-bible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 14px;
+}
+
 .story-bible-toggle {
-  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -139,6 +146,21 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
+}
+.section-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+.section-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 .story-bible-toggle:hover {
   background: rgba(255, 255, 255, 0.04);
@@ -171,6 +193,9 @@ body {
   line-height: 1.5;
   resize: none;
   outline: none;
+  /* 모바일에서 textarea 스크롤 시 부모 영역까지 스크롤 꼬이는 현상 방지 */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .story-bible-content textarea:focus {
   border-color: var(--accent-color);
