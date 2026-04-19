@@ -419,85 +419,85 @@ function App() {
         </header>
 
         <div className="chat-body">
-        <div className="chat-container" ref={chatContainerRef}>
-          {!currentChat || messages.length === 0 ? (
-            <div className="welcome-screen">
-              <h1>Chois-Chat</h1>
-              <p>비용 최적화 지능형 챗봇 서비스</p>
-            </div>
-          ) : (
-            messages.map((msg, i) => (
-              <div key={i} className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
-                <div className="message-content">
-                  <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
-                    {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
-                  </div>
-                  <div className="text">
-                    {Array.isArray(msg.content) ? (
-                      msg.content.map((c, j) => (
-                        <div key={j}>
-                          {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.text}</ReactMarkdown>}
-                          {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
-                        </div>
-                      ))
-                    ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                    )}
+          <div className="chat-container" ref={chatContainerRef}>
+            {!currentChat || messages.length === 0 ? (
+              <div className="welcome-screen">
+                <h1>Chois-Chat</h1>
+                <p>비용 최적화 지능형 챗봇 서비스</p>
+              </div>
+            ) : (
+              messages.map((msg, i) => (
+                <div key={i} className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
+                  <div className="message-content">
+                    <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
+                      {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
+                    </div>
+                    <div className="text">
+                      {Array.isArray(msg.content) ? (
+                        msg.content.map((c, j) => (
+                          <div key={j}>
+                            {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.text}</ReactMarkdown>}
+                            {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
+                          </div>
+                        ))
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="input-area">
-          <div className="input-wrapper">
-            {attachments.length > 0 && (
-              <div className="previews">
-                {attachments.map((att, i) => (
-                  <div key={i} className="preview-item">
-                    <img src={att.preview} alt="preview" />
-                    <button onClick={() => removeAttachment(i)} className="remove-btn"><X size={12} /></button>
-                  </div>
-                ))}
-              </div>
+              ))
             )}
-            <div className="input-container">
-              <button className="attach-btn" onClick={() => fileInputRef.current.click()}>
-                <Paperclip size={20} />
-              </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-                multiple 
-                accept="image/*"
-              />
-              <textarea
-                ref={textareaRef}
-                placeholder="메시지 입력..."
-                rows={1}
-                value={input}
-                onChange={handleInput}
-                onKeyDown={handleKeyDown}
-              />
-              {isLoading ? (
-                <button className="stop-btn" onClick={handleStop}>
-                  <Square size={18} fill="white" />
-                </button>
-              ) : (
-                <button 
-                  className="send-btn" 
-                  onClick={handleSend}
-                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                >
-                  <Send size={18} />
-                </button>
+          </div>
+
+          <div className="input-area">
+            <div className="input-wrapper">
+              {attachments.length > 0 && (
+                <div className="previews">
+                  {attachments.map((att, i) => (
+                    <div key={i} className="preview-item">
+                      <img src={att.preview} alt="preview" />
+                      <button onClick={() => removeAttachment(i)} className="remove-btn"><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
               )}
+              <div className="input-container">
+                <button className="attach-btn" onClick={() => fileInputRef.current.click()}>
+                  <Paperclip size={20} />
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                  multiple 
+                  accept="image/*"
+                />
+                <textarea
+                  ref={textareaRef}
+                  placeholder="메시지 입력..."
+                  rows={1}
+                  value={input}
+                  onChange={handleInput}
+                  onKeyDown={handleKeyDown}
+                />
+                {isLoading ? (
+                  <button className="stop-btn" onClick={handleStop}>
+                    <Square size={18} fill="white" />
+                  </button>
+                ) : (
+                  <button 
+                    className="send-btn" 
+                    onClick={handleSend}
+                    disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                  >
+                    <Send size={18} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </>
