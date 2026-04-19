@@ -85,9 +85,16 @@ function App() {
 
 
 
-  // 대화 전환 시 스크롤 맨 아래로
+  // 대화 전환 시 스크롤 맨 아래로 및 로딩 초기화
   useEffect(() => {
     if (!currentChatId) return;
+
+    // 다른 대화방으로 넘어오면 진행 중이던 스트리밍 중지 & 입력창 활성화 (프리징 방지)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsLoading(false);
+
     // setTimeout으로 DOM이 렌더된 후 스크롤
     const timer = setTimeout(() => {
       if (chatContainerRef.current) {
@@ -97,15 +104,30 @@ function App() {
     return () => clearTimeout(timer);
   }, [currentChatId]);
 
+  // 사용자가 스크롤을 올려서 읽는 중인지 감지하는 상태
+  const [isUserScrollingUp, setIsUserScrollingUp] = useState(false);
+
   // 스트리밍 중 새 메시지 올 때마다 스크롤 유지
   useEffect(() => {
     if (!chatContainerRef.current || !currentChatId) return;
     const el = chatContainerRef.current;
-    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    
+    // 만약 사용자가 일부러 스크롤을 위로 올렸다면 자동 스크롤하지 않음
+    if (isUserScrollingUp) return;
+
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     if (isNearBottom) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [chats]);
+  }, [chats, isUserScrollingUp, currentChatId]);
+
+  // 스크롤 이벤트 감지
+  const handleScroll = (e) => {
+    const el = e.target;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    // 바닥 근처면 '사용자가 올린 상태'를 해제하고 자동 스크롤 켬
+    setIsUserScrollingUp(!isNearBottom);
+  };
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
   const messages = currentChat ? currentChat.messages : [];
@@ -201,9 +223,14 @@ function App() {
       return c;
     }));
 
+    // 에러 발생 시 복구를 위해 입력값 백업
+    const backupInput = input;
+    const backupAttachments = [...attachments];
+
     setInput('');
     setAttachments([]);
     setIsLoading(true);
+    setIsUserScrollingUp(false); // 전송 시 무조건 조준을 맨 밑으로 초기화
 
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
@@ -281,9 +308,18 @@ function App() {
       );
     } catch (error) {
       if (error.name !== 'AbortError') {
+        // 오류 발생 시 작성했던 글 복구
+        setInput(backupInput);
+        setAttachments(backupAttachments);
+        if (textareaRef.current) {
+          setTimeout(() => {
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+          }, 10);
+        }
+
         setChats(prev => prev.map(c => {
           if (c.id === chatId) {
-            return { ...c, messages: [...c.messages, { role: 'assistant', content: '오류: ' + error.message }] };
+            return { ...c, messages: [...c.messages, { role: 'assistant', content: '🚨 통신 오류: 답변 생성에 실패하여 전송된 글을 복구했습니다. (' + error.message + ')' }] };
           }
           return c;
         }));
@@ -419,11 +455,11 @@ function App() {
         </header>
 
         <div className="chat-body">
-          <div className="chat-container" ref={chatContainerRef}>
+          <div className="chat-container" ref={chatContainerRef} onScroll={handleScroll}>
             {!currentChat || messages.length === 0 ? (
               <div className="welcome-screen">
                 <h1>Chois-Chat</h1>
-                <p>비용 최적화 지능형 챗봇 서비스</p>
+                <p>소설 작성 및 비용 최적화 기능 포함된 전문 AI 비서입니다.</p>
               </div>
             ) : (
               messages.map((msg, i) => (

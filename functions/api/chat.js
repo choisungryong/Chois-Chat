@@ -16,8 +16,9 @@ export async function onRequestPost(context) {
     const lastMessage = messages[messages.length - 1];
     const isMultiModal = Array.isArray(lastMessage.content) && lastMessage.content.some(c => c.type === 'image_url');
     // Calculate context length including Story Bible
+    // 글자수 기준을 2,000자에서 30,000자로 대폭 상향 (소설 작업 등 긴 텍스트 입력 시 비용 폭탄 방지)
     const contextLength = JSON.stringify(messages).length + (storyBible ? storyBible.length : 0);
-    const isLongContext = contextLength > 2000;
+    const isLongContext = contextLength > 30000;
     
     // Escalate to Heavy if Image or Long Context
     if (isMultiModal || isLongContext) {
@@ -67,7 +68,6 @@ Always aim to provide the quality and depth of response that a senior expert wou
         model: targetModel,
         messages: [systemMessage, ...messages],
         stream: true,
-        max_completion_tokens: 4000, // Sufficient for detailed responses
       }),
     });
 
