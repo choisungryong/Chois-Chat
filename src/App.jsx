@@ -78,22 +78,34 @@ function App() {
     localStorage.setItem('chois-master-prompt', masterPrompt);
   }, [masterPrompt]);
 
-  // Persistent storage for chats
+  // Persistent storage for chats (최초 로딩 시 자동 선택 없음 - 새 대화로 시작)
   useEffect(() => {
     localStorage.setItem('chois-chats', JSON.stringify(chats));
-    if (chats.length > 0 && !currentChatId) {
-      setCurrentChatId(chats[0].id);
-    }
   }, [chats]);
 
 
 
-  // Scroll to bottom
+  // 대화 전환 시 스크롤 맨 아래로
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    if (!currentChatId) return;
+    // setTimeout으로 DOM이 렌더된 후 스크롤
+    const timer = setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentChatId]);
+
+  // 스트리밍 중 새 메시지 올 때마다 스크롤 유지
+  useEffect(() => {
+    if (!chatContainerRef.current || !currentChatId) return;
+    const el = chatContainerRef.current;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight;
     }
-  }, [currentChatId, chats]);
+  }, [chats]);
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
   const messages = currentChat ? currentChat.messages : [];
