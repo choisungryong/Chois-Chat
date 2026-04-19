@@ -406,6 +406,7 @@ function App() {
           </div>
         </header>
 
+        <div className="chat-body">
         <div className="chat-container" ref={chatContainerRef}>
           {!currentChat || messages.length === 0 ? (
             <div className="welcome-screen">
@@ -484,6 +485,7 @@ function App() {
               )}
             </div>
           </div>
+        </div>
         </div>
       </div>
     </>
