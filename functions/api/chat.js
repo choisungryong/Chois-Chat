@@ -68,6 +68,7 @@ Always aim to provide the quality and depth of response that a senior expert wou
         model: targetModel,
         messages: [systemMessage, ...messages],
         stream: true,
+        max_completion_tokens: 8000, // 통신 오류(타임아웃) 에러 방지용 안전 한계선. 여기서 안전하게 끊기면 "이어서 써 줘" 라고 입력 가능.
       }),
     });
 
