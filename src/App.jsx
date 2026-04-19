@@ -27,7 +27,8 @@ function App() {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // 모바일 환경(768px 이하)이면 최초 접속 시 닫힌 상태로 시작
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth > 768);
   const [storyBible, setStoryBible] = useState(() => {
     return localStorage.getItem('chois-story-bible') || '';
   });
@@ -183,6 +184,9 @@ function App() {
     setAttachments([]);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto'; // 새 대화 시 입력창 크기 리셋
+    
+    // 모바일이면 햄버거 메뉴 자동 닫기
+    if (window.innerWidth <= 768) setIsSidebarOpen(false);
   };
 
   const deleteChat = (e, id) => {
@@ -370,7 +374,11 @@ function App() {
             <div 
               key={chat.id} 
               className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
-              onClick={() => setCurrentChatId(chat.id)}
+              onClick={() => {
+                setCurrentChatId(chat.id);
+                // 모바일이면 방 선택 후 메뉴 닫기
+                if (window.innerWidth <= 768) setIsSidebarOpen(false);
+              }}
             >
               <MessageSquare size={16} />
               <span className="history-title">{chat.title}</span>
