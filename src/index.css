@@ -413,9 +413,22 @@ body {
 .user-avatar { background: #5436da; }
 .ai-avatar   { background: #10a37f; }
 
+/* ─── TEXT CONTAINER & ACTIONS ────────────────────────────── */
+.text-container {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-row.user .text-container {
+  flex: initial;
+  width: 100%;
+  align-items: flex-end;
+}
+
 /* AI Text: no bubble, no background, flows naturally */
 .message-row.ai .text {
-  flex: 1;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -425,6 +438,56 @@ body {
   color: var(--text-primary);
   word-break: break-word;
   min-width: 0;
+}
+
+/* Message Actions (Copy button, etc) */
+.message-actions {
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.message-actions.top-actions {
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.message-actions.bottom-actions {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.message-row.ai:hover .message-actions,
+.message-actions:focus-within {
+  opacity: 1;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.copied-icon {
+  color: var(--accent-color);
+}
+
+.copied-text {
+  color: var(--accent-color);
+  font-weight: 500;
 }
 
 /* ─── RICH MARKDOWN STYLES ────────────────────────────────── */
