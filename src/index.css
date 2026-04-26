@@ -533,13 +533,55 @@ body {
   color: #e2a0ff;
 }
 
-/* Code block (react-markdown wraps in pre > code) */
-.text pre {
+/* Code block wrapper (Custom ReactMarkdown component) */
+.code-block-wrapper {
   background: var(--code-bg);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
-  padding: 16px 20px;
   margin: 0.8em 0;
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.code-lang {
+  color: #a0a0a0;
+  font-size: 0.75rem;
+  font-family: var(--font-code);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.code-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.code-copy-btn:hover {
+  color: #fff;
+}
+
+/* Original pre inside wrapper */
+.text pre {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 16px 20px;
+  margin: 0;
   overflow-x: auto;
 }
 .text pre code {

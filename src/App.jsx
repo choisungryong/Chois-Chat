@@ -10,6 +10,42 @@ const MODELS = [
   { id: 'gpt-5.4', name: 'GPT-5.4 Pro', desc: '복잡한 논리 및 시각 분석' }
 ];
 
+const CodeBlock = ({ node, inline, className, children, ...props }) => {
+  const [copied, setCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const text = String(children).replace(/\n$/, '');
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!inline) {
+    return (
+      <div className="code-block-wrapper">
+        <div className="code-block-header">
+          <span className="code-lang">{match ? match[1] : 'text'}</span>
+          <button className="code-copy-btn" onClick={copyCode}>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
+        <pre className={className}>
+          <code className={className} {...props}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+  return (
+    <code className={className} {...props}>
+      {children}
+    </code>
+  );
+};
+
 function App() {
   const [chats, setChats] = useState(() => {
     const saved = localStorage.getItem('chois-chats');
@@ -546,12 +582,12 @@ function App() {
                         {Array.isArray(msg.content) ? (
                           msg.content.map((c, j) => (
                             <div key={j}>
-                              {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.text}</ReactMarkdown>}
+                              {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{c.text}</ReactMarkdown>}
                               {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
                             </div>
                           ))
                         ) : (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{msg.content}</ReactMarkdown>
                         )}
                       </div>
                       
