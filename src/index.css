@@ -723,6 +723,9 @@ textarea::placeholder { color: rgba(255,255,255,0.3); }
   .message-content { width: 96%; }
   .message-row.user .text { max-width: 88%; font-size: 0.93rem; }
   .message-row.ai .text { font-size: 0.93rem; }
+  
+  /* Make actions always visible on touch/mobile devices */
+  .message-actions { opacity: 1; }
 
   /* Input */
   .input-area { padding: 14px 0 18px; }
