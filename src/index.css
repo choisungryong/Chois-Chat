@@ -261,19 +261,94 @@ body {
 }
 
 .usage-reset-btn {
-  width: 100%;
   background: transparent;
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 6px;
   color: rgba(255,255,255,0.25);
   font-size: 0.7rem;
-  padding: 5px 0;
+  padding: 5px 10px;
   cursor: pointer;
   transition: all 0.15s;
+  flex: 1;
 }
 .usage-reset-btn:hover {
   background: rgba(255,255,255,0.04);
   color: rgba(255,255,255,0.5);
+}
+
+/* 버튼 행 (확인 + 초기화) */
+.usage-btn-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* 실제 잔액 확인 버튼 */
+.usage-check-btn {
+  flex: 2;
+  background: rgba(16, 163, 127, 0.12);
+  border: 1px solid rgba(16, 163, 127, 0.3);
+  border-radius: 6px;
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.usage-check-btn:hover:not(:disabled) {
+  background: rgba(16, 163, 127, 0.22);
+  border-color: var(--accent-color);
+}
+.usage-check-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 실제 잔액 조회 결과 표시 박스 */
+.usage-real-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(16, 163, 127, 0.08);
+  border: 1px solid rgba(16, 163, 127, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.usage-real-amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent-color);
+  line-height: 1;
+}
+.usage-real-tag {
+  font-size: 0.7rem;
+  color: rgba(16, 163, 127, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 에러 표시 */
+.usage-balance-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+
+/* 로컬 추정 라벨 */
+.usage-estimate-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.2);
+  margin-bottom: 4px;
+  margin-top: 2px;
 }
 
 /* ─── MAIN CONTENT ────────────────────────────────────────── */

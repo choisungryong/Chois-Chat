@@ -145,6 +145,26 @@ function App() {
     return parseFloat(localStorage.getItem('chois-total-spent') || '0');
   });
 
+  // 실제 OpenAI 잔여 크레딧 조회
+  const [realBalance, setRealBalance] = useState(null);   // null = 미조회
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState(null);
+
+  const fetchBalance = async () => {
+    setBalanceLoading(true);
+    setBalanceError(null);
+    try {
+      const res = await fetch('/api/balance');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '조회 실패');
+      setRealBalance(data.total_available);
+    } catch (e) {
+      setBalanceError(e.message);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
   // Model pricing per 1M tokens (OpenAI 공식 기준 추정치)
   const MODEL_PRICING = {
     'gpt-5.4-mini': { input: 0.15,  output: 0.60  },
@@ -566,6 +586,20 @@ function App() {
         {/* Usage Monitor */}
         <div className="usage-monitor">
           <div className="usage-label">API 잔여 크레딧</div>
+
+          {/* 실제 잔액 조회 결과 */}
+          {realBalance !== null && !balanceError && (
+            <div className="usage-real-balance">
+              <span className="usage-real-amount">${realBalance.toFixed(2)}</span>
+              <span className="usage-real-tag">실제 잔액</span>
+            </div>
+          )}
+          {balanceError && (
+            <div className="usage-balance-error">⚠️ {balanceError}</div>
+          )}
+
+          {/* 로컬 추적 (추정치) */}
+          <div className="usage-estimate-label">로컬 추정 잔액</div>
           <div className="usage-amount">
             ${(BUDGET - totalSpent).toFixed(2)}
           </div>
@@ -579,13 +613,23 @@ function App() {
             />
           </div>
           <div className="usage-base">기준: ${BUDGET}</div>
-          <button
-            className="usage-reset-btn"
-            onClick={() => {
-              setTotalSpent(0);
-              localStorage.removeItem('chois-total-spent');
-            }}
-          >추적 초기화</button>
+
+          <div className="usage-btn-row">
+            <button
+              className="usage-check-btn"
+              onClick={fetchBalance}
+              disabled={balanceLoading}
+            >
+              {balanceLoading ? '조회 중...' : '✅ 실제 잔액 확인'}
+            </button>
+            <button
+              className="usage-reset-btn"
+              onClick={() => {
+                setTotalSpent(0);
+                localStorage.removeItem('chois-total-spent');
+              }}
+            >초기화</button>
+          </div>
         </div>
       </div>
 
