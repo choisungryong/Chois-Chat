@@ -7,7 +7,9 @@ import './index.css';
 const MODELS = [
   { id: 'auto', name: 'Auto (최적화)', desc: '비용 대비 성능 자동 조절' },
   { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', desc: '빠르고 저렴한 처리' },
-  { id: 'gpt-5.4', name: 'GPT-5.4 Pro', desc: '복잡한 논리 및 시각 분석' }
+  { id: 'gpt-5.4', name: 'GPT-5.4 Pro', desc: '복잡한 논리 및 시각 분석' },
+  { id: 'gpt-5.5', name: 'GPT-5.5', desc: '최신 플래그십 모델 (에이전트/복잡 작업)' },
+  { id: 'gpt-5.5-pro', name: 'GPT-5.5 Pro', desc: '최고 수준 추론 및 정밀 응답' }
 ];
 
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
@@ -143,10 +145,12 @@ function App() {
     return parseFloat(localStorage.getItem('chois-total-spent') || '0');
   });
 
-  // Model pricing per 1M tokens
+  // Model pricing per 1M tokens (OpenAI 공식 기준 추정치)
   const MODEL_PRICING = {
-    'gpt-5.4-mini': { input: 0.15, output: 0.60 },
-    'gpt-5.4':      { input: 2.50, output: 10.00 },
+    'gpt-5.4-mini': { input: 0.15,  output: 0.60  },
+    'gpt-5.4':      { input: 2.50,  output: 10.00 },
+    'gpt-5.5':      { input: 5.00,  output: 20.00 },
+    'gpt-5.5-pro':  { input: 15.00, output: 60.00 },
   };
 
   // Add cost from a completed response (한국어 특성 반영된 근사 토큰 계산)

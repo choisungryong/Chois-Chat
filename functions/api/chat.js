@@ -15,17 +15,21 @@ export async function onRequestPost(context) {
   if (model === 'auto') {
     const lastMessage = messages[messages.length - 1];
     const isMultiModal = Array.isArray(lastMessage.content) && lastMessage.content.some(c => c.type === 'image_url');
-    // Calculate context length including Story Bible
-    // 글자수 기준을 2,000자에서 30,000자로 대폭 상향 (소설 작업 등 긴 텍스트 입력 시 비용 폭탄 방지)
     const contextLength = JSON.stringify(messages).length + (storyBible ? storyBible.length : 0);
     const isLongContext = contextLength > 30000;
     
     // Escalate to Heavy if Image or Long Context
     if (isMultiModal || isLongContext) {
-      targetModel = "gpt-5.4";
+      targetModel = "gpt-5.5";
     } else {
       targetModel = "gpt-5.4-mini";
     }
+  }
+
+  // Validate model is in allowed list (보안: 허용된 모델만 통과)
+  const ALLOWED_MODELS = ['gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5', 'gpt-5.5-pro'];
+  if (!ALLOWED_MODELS.includes(targetModel)) {
+    targetModel = 'gpt-5.4-mini';
   }
 
   // System Prompt - High Quality, Structured Responses
