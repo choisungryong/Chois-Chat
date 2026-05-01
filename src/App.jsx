@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare, Copy, Check } from 'lucide-react';
@@ -45,6 +45,68 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
     </code>
   );
 };
+
+// ─── 메시지 버블 (메모이제이션으로 타이핑 시 불필요한 리렌더 방지) ───
+const MessageBubble = memo(({ msg, index, copiedIndex, onCopy }) => {
+  const getTextContent = (content) =>
+    Array.isArray(content) ? content.map(c => c.text || '').join('\n') : content;
+
+  return (
+    <div className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
+      <div className="message-content">
+        <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
+          {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
+        </div>
+        <div className="text-container">
+          {msg.role === 'assistant' && (
+            <div className="message-actions top-actions">
+              <button
+                className="action-btn"
+                onClick={() => onCopy(getTextContent(msg.content), index)}
+                title={copiedIndex === index ? '복사됨!' : '복사'}
+              >
+                {copiedIndex === index ? (
+                  <><Check size={14} className="copied-icon" /> <span className="copied-text">복사됨!</span></>
+                ) : (
+                  <><Copy size={14} /> <span>위에서 복사</span></>
+                )}
+              </button>
+            </div>
+          )}
+
+          <div className="text">
+            {Array.isArray(msg.content) ? (
+              msg.content.map((c, j) => (
+                <div key={j}>
+                  {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{c.text}</ReactMarkdown>}
+                  {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
+                </div>
+              ))
+            ) : (
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{msg.content}</ReactMarkdown>
+            )}
+          </div>
+
+          {msg.role === 'assistant' && (
+            <div className="message-actions bottom-actions">
+              <button
+                className="action-btn"
+                onClick={() => onCopy(getTextContent(msg.content), index)}
+                title={copiedIndex === index ? '복사됨!' : '복사'}
+              >
+                {copiedIndex === index ? (
+                  <><Check size={14} className="copied-icon" /> <span className="copied-text">복사됨!</span></>
+                ) : (
+                  <><Copy size={14} /> <span>아래서 복사</span></>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 function App() {
   const [chats, setChats] = useState(() => {
@@ -182,11 +244,11 @@ function App() {
     setIsUserScrollingUp(!isNearBottom);
   };
 
-  const handleCopy = (text, index) => {
+  const handleCopy = useCallback((text, index) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
-  };
+  }, []);
 
   const currentChat = chats.find(c => c.id === currentChatId) || null;
   const messages = currentChat ? currentChat.messages : [];
@@ -551,69 +613,13 @@ function App() {
               </div>
             ) : (
               messages.map((msg, i) => (
-                <div key={i} className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
-                  <div className="message-content">
-                    <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
-                      {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
-                    </div>
-                    <div className="text-container">
-                      {msg.role === 'assistant' && (
-                        <div className="message-actions top-actions">
-                          <button 
-                            className="action-btn"
-                            onClick={() => {
-                              const textToCopy = Array.isArray(msg.content) 
-                                ? msg.content.map(c => c.text || '').join('\n') 
-                                : msg.content;
-                              handleCopy(textToCopy, i);
-                            }}
-                            title={copiedIndex === i ? "복사됨!" : "복사"}
-                          >
-                            {copiedIndex === i ? (
-                              <><Check size={14} className="copied-icon" /> <span className="copied-text">복사됨!</span></>
-                            ) : (
-                              <><Copy size={14} /> <span>위에서 복사</span></>
-                            )}
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="text">
-                        {Array.isArray(msg.content) ? (
-                          msg.content.map((c, j) => (
-                            <div key={j}>
-                              {c.type === 'text' && <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{c.text}</ReactMarkdown>}
-                              {c.type === 'image_url' && <img src={c.image_url.url} alt="Uploaded" className="chat-img" />}
-                            </div>
-                          ))
-                        ) : (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{msg.content}</ReactMarkdown>
-                        )}
-                      </div>
-                      
-                      {msg.role === 'assistant' && (
-                        <div className="message-actions bottom-actions">
-                          <button 
-                            className="action-btn"
-                            onClick={() => {
-                              const textToCopy = Array.isArray(msg.content) 
-                                ? msg.content.map(c => c.text || '').join('\n') 
-                                : msg.content;
-                              handleCopy(textToCopy, i);
-                            }}
-                            title={copiedIndex === i ? "복사됨!" : "복사"}
-                          >
-                            {copiedIndex === i ? (
-                              <><Check size={14} className="copied-icon" /> <span className="copied-text">복사됨!</span></>
-                            ) : (
-                              <><Copy size={14} /> <span>아래서 복사</span></>
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <MessageBubble
+                  key={i}
+                  msg={msg}
+                  index={i}
+                  copiedIndex={copiedIndex}
+                  onCopy={handleCopy}
+                />
               ))
             )}
           </div>
