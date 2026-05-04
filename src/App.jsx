@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare, Copy, Check } from 'lucide-react';
+import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare, Copy, Check, FileText } from 'lucide-react';
 import './index.css';
 
 const MODELS = [
@@ -283,14 +283,66 @@ function App() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const SUPPORTED_DOC_TYPES = [
+    'text/plain', 'text/csv', 'text/markdown',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/json',
+  ];
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAttachments(prev => [...prev, { file, preview: reader.result }]);
-      };
-      reader.readAsDataURL(file);
+      if (SUPPORTED_IMAGE_TYPES.includes(file.type) || file.type.startsWith('image/')) {
+        // 이미지: base64 Data URL로 읽기
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachments(prev => [...prev, {
+            kind: 'image',
+            file,
+            name: file.name,
+            preview: reader.result
+          }]);
+        };
+        reader.readAsDataURL(file);
+      } else if (SUPPORTED_DOC_TYPES.includes(file.type) || file.name.match(/\.(txt|md|csv|json|pdf|docx?|xlsx?|pptx?)$/i)) {
+        // 문서: 텍스트로 읽기 (PDF/DOCX는 원문 그대로 전달 — 실용적 텍스트 추출)
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachments(prev => [...prev, {
+            kind: 'document',
+            file,
+            name: file.name,
+            mimeType: file.type,
+            text: reader.result,
+            preview: null
+          }]);
+        };
+        // 텍스트로 읽을 수 있는 파일만 readAsText, 바이너리(PDF/DOCX)는 base64
+        const textReadable = file.type.startsWith('text/') || file.name.match(/\.(txt|md|csv|json)$/i);
+        if (textReadable) {
+          reader.readAsText(file, 'UTF-8');
+        } else {
+          // PDF/DOCX: base64로 읽어서 서버에 전달 (현재는 파일명+사이즈 안내로 fallback)
+          reader.onloadend = () => {
+            setAttachments(prev => [...prev, {
+              kind: 'document',
+              file,
+              name: file.name,
+              mimeType: file.type,
+              text: `[첨부 파일: ${file.name} (${(file.size / 1024).toFixed(1)} KB) — 바이너리 형식으로 텍스트 추출이 제한됩니다. 파일 내용을 직접 붙여넣기 하시면 더 정확한 분석이 가능합니다.]`,
+              preview: null
+            }]);
+          };
+          reader.readAsArrayBuffer(file);
+        }
+      } else {
+        alert(`지원하지 않는 파일 형식입니다: ${file.name}\n지원: 이미지, TXT, MD, CSV, JSON, PDF, DOCX, XLSX`);
+      }
     });
     e.target.value = null;
   };
@@ -354,7 +406,14 @@ function App() {
     let content = [];
     if (input.trim()) content.push({ type: 'text', text: input });
     attachments.forEach(att => {
-      content.push({ type: 'image_url', image_url: { url: att.preview } });
+      if (att.kind === 'image') {
+        content.push({ type: 'image_url', image_url: { url: att.preview } });
+      } else if (att.kind === 'document') {
+        content.push({
+          type: 'text',
+          text: `\n---\n📄 첨부 파일: **${att.name}**\n\n${att.text}\n---\n`
+        });
+      }
     });
 
     const userMessage = { role: 'user', content };
@@ -366,7 +425,7 @@ function App() {
         return { 
           ...c, 
           messages: updatedUserMessages,
-          title: c.messages.length === 0 ? (input.trim().substring(0, 20) || '이미지 대화') : c.title
+          title: c.messages.length === 0 ? (input.trim().substring(0, 20) || (attachments.some(a => a.kind === 'document') ? '📄 문서 분석' : '🖼️ 이미지 대화')) : c.title
         };
       }
       return c;
@@ -677,8 +736,17 @@ function App() {
               {attachments.length > 0 && (
                 <div className="previews">
                   {attachments.map((att, i) => (
-                    <div key={i} className="preview-item">
-                      <img src={att.preview} alt="preview" />
+                    <div key={i} className={`preview-item ${att.kind === 'document' ? 'doc-preview-item' : ''}`}>
+                      {att.kind === 'image' ? (
+                        <img src={att.preview} alt="preview" />
+                      ) : (
+                        <div className="doc-preview-inner">
+                          <FileText size={22} className="doc-preview-icon" />
+                          <span className="doc-preview-name" title={att.name}>
+                            {att.name.length > 16 ? att.name.substring(0, 14) + '…' : att.name}
+                          </span>
+                        </div>
+                      )}
                       <button onClick={() => removeAttachment(i)} className="remove-btn"><X size={12} /></button>
                     </div>
                   ))}
@@ -694,7 +762,7 @@ function App() {
                   onChange={handleFileChange} 
                   className="hidden" 
                   multiple 
-                  accept="image/*"
+                  accept="image/*,.txt,.md,.csv,.json,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                 />
                 <textarea
                   ref={textareaRef}
