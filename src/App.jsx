@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare, Copy, Check, FileText } from 'lucide-react';
+import { Send, Plus, User, Bot, Paperclip, X, Square, Trash2, MessageSquare, Copy, Check, FileText, Search } from 'lucide-react';
 import './index.css';
 
 const MODELS = [
@@ -110,6 +110,113 @@ const MessageBubble = memo(({ msg, index, copiedIndex, onCopy }) => {
   );
 });
 
+// ─── 검색 패널 컴포넌트 ───────────────────────────────────────
+const SearchPanel = memo(({ chats, onClose, onSelect }) => {
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    // 패널 열리면 자동 포커스
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const getTextContent = (content) =>
+    Array.isArray(content) ? content.map(c => c.text || '').join(' ') : (content || '');
+
+  const results = query.trim().length < 1 ? [] : (() => {
+    const q = query.trim().toLowerCase();
+    const found = [];
+    chats.forEach(chat => {
+      chat.messages.forEach((msg, msgIdx) => {
+        const text = getTextContent(msg.content);
+        const idx = text.toLowerCase().indexOf(q);
+        if (idx !== -1) {
+          found.push({
+            chatId: chat.id,
+            chatTitle: chat.title,
+            msgIdx,
+            role: msg.role,
+            text,
+            matchStart: idx,
+            matchEnd: idx + q.length,
+          });
+        }
+      });
+    });
+    return found;
+  })();
+
+  const highlight = (text, start, end) => {
+    const MAX = 140;
+    // excerpt 범위: match 앞뒤 60자
+    const from = Math.max(0, start - 60);
+    const to = Math.min(text.length, end + 80);
+    const excerpt = text.slice(from, to);
+    const relStart = start - from;
+    const relEnd = end - from;
+    const before = excerpt.slice(0, relStart);
+    const match = excerpt.slice(relStart, relEnd);
+    const after = excerpt.slice(relEnd, MAX);
+    return { before: (from > 0 ? '…' : '') + before, match, after: after + (to < text.length ? '…' : '') };
+  };
+
+  return (
+    <div className="search-panel" role="dialog" aria-modal="true">
+      <div className="search-panel-backdrop" onClick={onClose} />
+      <div className="search-panel-box">
+        <div className="search-panel-header">
+          <Search size={18} className="search-panel-icon" />
+          <input
+            ref={inputRef}
+            className="search-panel-input"
+            placeholder="전체 대화에서 검색..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Escape' && onClose()}
+          />
+          <button className="search-panel-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="search-results">
+          {query.trim().length === 0 && (
+            <div className="search-empty">검색어를 입력하면 모든 대화를 탐색합니다.</div>
+          )}
+          {query.trim().length > 0 && results.length === 0 && (
+            <div className="search-empty">'{query}' 에 대한 결과가 없습니다.</div>
+          )}
+          {results.map((r, i) => {
+            const { before, match, after } = highlight(r.text, r.matchStart, r.matchEnd);
+            return (
+              <button
+                key={i}
+                className="search-result-item"
+                onClick={() => { onSelect(r.chatId); onClose(); }}
+              >
+                <div className="search-result-meta">
+                  <MessageSquare size={13} />
+                  <span className="search-result-chat">{r.chatTitle}</span>
+                  <span className="search-result-role">{r.role === 'user' ? '나' : 'AI'}</span>
+                </div>
+                <div className="search-result-excerpt">
+                  <span className="search-excerpt-plain">{before}</span>
+                  <span className="search-excerpt-match">{match}</span>
+                  <span className="search-excerpt-plain">{after}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {results.length > 0 && (
+          <div className="search-result-count">{results.length}개 결과</div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 function App() {
   const [chats, setChats] = useState(() => {
     const saved = localStorage.getItem('chois-chats');
@@ -128,6 +235,7 @@ function App() {
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   // 모바일 환경(768px 이하)이면 최초 접속 시 닫힌 상태로 시작
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth > 768);
   const [storyBible, setStoryBible] = useState(() => {
@@ -543,6 +651,18 @@ function App() {
     }
   };
 
+  // 전역 Ctrl+K 단축키로 검색 패널 토글
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <>
       {/* Mobile overlay backdrop */}
@@ -692,6 +812,17 @@ function App() {
         </div>
       </div>
 
+      {isSearchOpen && (
+        <SearchPanel
+          chats={chats}
+          onClose={() => setIsSearchOpen(false)}
+          onSelect={(chatId) => {
+            setCurrentChatId(chatId);
+            if (window.innerWidth <= 768) setIsSidebarOpen(false);
+          }}
+        />
+      )}
+
       <div className="main-content">
         <header className="chat-header">
           {/* Hamburger for mobile */}
@@ -709,6 +840,14 @@ function App() {
               ))}
             </select>
           </div>
+          <button
+            className="header-search-btn"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="전체 검색"
+            title="전체 대화 검색 (Ctrl+K)"
+          >
+            <Search size={18} />
+          </button>
         </header>
 
         <div className="chat-body">
