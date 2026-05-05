@@ -87,12 +87,15 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 };
 
 // ─── 메시지 버블 (메모이제이션으로 타이핑 시 불필요한 리렌더 방지) ───
-const MessageBubble = memo(({ msg, index, copiedIndex, onCopy }) => {
+const MessageBubble = memo(({ msg, index, copiedIndex, onCopy, isHighlighted }) => {
   const getTextContent = (content) =>
     Array.isArray(content) ? content.map(c => c.text || '').join('\n') : content;
 
   return (
-    <div className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}`}>
+    <div
+      id={`msg-${index}`}
+      className={`message-row ${msg.role === 'assistant' ? 'ai' : 'user'}${isHighlighted ? ' msg-highlight' : ''}`}
+    >
       <div className="message-content">
         <div className={`avatar ${msg.role === 'assistant' ? 'ai-avatar' : 'user-avatar'}`}>
           {msg.role === 'assistant' ? <Bot size={20} color="white" /> : <User size={20} color="white" />}
@@ -230,7 +233,7 @@ const SearchPanel = memo(({ chats, onClose, onSelect }) => {
               <button
                 key={i}
                 className="search-result-item"
-                onClick={() => { onSelect(r.chatId); onClose(); }}
+                onClick={() => { onSelect(r.chatId, r.msgIdx); onClose(); }}
               >
                 <div className="search-result-meta">
                   <MessageSquare size={13} />
@@ -274,6 +277,7 @@ function App() {
   const abortControllerRef = useRef(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchHighlight, setSearchHighlight] = useState(null); // { msgIdx } — 하이라이트 대상
   // 모바일 환경(768px 이하)이면 최초 접속 시 닫힌 상태로 시작
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth > 768);
   const [storyBible, setStoryBible] = useState(() => {
@@ -878,9 +882,19 @@ function App() {
         <SearchPanel
           chats={chats}
           onClose={() => setIsSearchOpen(false)}
-          onSelect={(chatId) => {
+          onSelect={(chatId, msgIdx) => {
             setCurrentChatId(chatId);
             if (window.innerWidth <= 768) setIsSidebarOpen(false);
+            // 스크롤 + 하이라이트: DOM이 렌더된 후 실행
+            setTimeout(() => {
+              const el = document.getElementById(`msg-${msgIdx}`);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+              setSearchHighlight({ msgIdx });
+              // 2.5수 후 하이라이트 해제
+              setTimeout(() => setSearchHighlight(null), 2500);
+            }, 120);
           }}
         />
       )}
@@ -927,6 +941,7 @@ function App() {
                   index={i}
                   copiedIndex={copiedIndex}
                   onCopy={handleCopy}
+                  isHighlighted={searchHighlight?.msgIdx === i}
                 />
               ))
             )}

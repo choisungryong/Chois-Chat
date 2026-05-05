@@ -563,6 +563,18 @@ body {
   min-width: 0;
 }
 
+/* ─── SEARCH HIGHLIGHT ────────────────────────────────────── */
+@keyframes msgHighlightPulse {
+  0%   { background: transparent; }
+  15%  { background: rgba(16, 163, 127, 0.14); border-radius: 12px; }
+  60%  { background: rgba(16, 163, 127, 0.10); border-radius: 12px; }
+  100% { background: transparent; }
+}
+
+.message-row.msg-highlight {
+  animation: msgHighlightPulse 2.5s ease forwards;
+}
+
 /* Message Actions (Copy button, etc) */
 .message-actions {
   display: flex;
