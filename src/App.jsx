@@ -275,6 +275,7 @@ function App() {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const searchScrollRef = useRef(null); // 검색 스크롤 대기 msgIdx
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchHighlight, setSearchHighlight] = useState(null); // { msgIdx } — 하이라이트 대상
@@ -386,10 +387,23 @@ function App() {
 
     // setTimeout으로 DOM이 렌더된 후 스크롤
     const timer = setTimeout(() => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      if (searchScrollRef.current !== null) {
+        // 검색 스크롤 대기 중: 해당 메시지로 이동
+        const msgIdx = searchScrollRef.current;
+        searchScrollRef.current = null;
+        const el = document.getElementById(`msg-${msgIdx}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setSearchHighlight({ msgIdx });
+          setIsUserScrollingUp(true); // chats effect의 맨아래 스크롤 외합 방지
+          setTimeout(() => setSearchHighlight(null), 2500);
+        }
+      } else {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
       }
-    }, 50);
+    }, 80);
     return () => clearTimeout(timer);
   }, [currentChatId]);
 
@@ -883,18 +897,24 @@ function App() {
           chats={chats}
           onClose={() => setIsSearchOpen(false)}
           onSelect={(chatId, msgIdx) => {
-            setCurrentChatId(chatId);
             if (window.innerWidth <= 768) setIsSidebarOpen(false);
-            // 스크롤 + 하이라이트: DOM이 렌더된 후 실행
-            setTimeout(() => {
-              const el = document.getElementById(`msg-${msgIdx}`);
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-              setSearchHighlight({ msgIdx });
-              // 2.5수 후 하이라이트 해제
-              setTimeout(() => setSearchHighlight(null), 2500);
-            }, 120);
+
+            if (currentChatId === chatId) {
+              // 같은 채팅방: useEffect 미발동 → 직접 스크롤
+              setTimeout(() => {
+                const el = document.getElementById(`msg-${msgIdx}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  setSearchHighlight({ msgIdx });
+                  setIsUserScrollingUp(true);
+                  setTimeout(() => setSearchHighlight(null), 2500);
+                }
+              }, 50);
+            } else {
+              // 다른 채팅방: ref로 대기 후 currentChatId effect에서 토스
+              searchScrollRef.current = msgIdx;
+              setCurrentChatId(chatId);
+            }
           }}
         />
       )}
