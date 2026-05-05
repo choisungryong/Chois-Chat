@@ -12,6 +12,44 @@ const MODELS = [
   { id: 'gpt-5.5-pro', name: 'GPT-5.5 Pro', desc: '최고 수준 추론 및 정밀 응답' }
 ];
 
+// 모델별 컨텍스트 윈도우 크기 (토큰 수)
+const CONTEXT_WINDOWS = {
+  'auto':        128000,
+  'gpt-5.4-mini': 128000,
+  'gpt-5.4':     128000,
+  'gpt-5.5':     200000,
+  'gpt-5.5-pro': 200000,
+};
+
+// 한/영 혼합 토큰 추정 (한글 1자 ≈ 1.5토큰, 영어 4자 ≈ 1토큰)
+const estimateTokens = (text) => {
+  if (!text) return 0;
+  let ascii = 0, nonAscii = 0;
+  for (let i = 0; i < text.length; i++) {
+    text.charCodeAt(i) <= 127 ? ascii++ : nonAscii++;
+  }
+  return Math.round((ascii / 4) + (nonAscii * 1.5));
+};
+
+const getMsgText = (content) =>
+  Array.isArray(content) ? content.map(c => c.text || '').join(' ') : (content || '');
+
+// 채팅의 총 토큰 수 계산
+const calcChatTokens = (chat) => {
+  if (!chat?.messages?.length) return 0;
+  return chat.messages.reduce((sum, msg) => sum + estimateTokens(getMsgText(msg.content)), 0);
+};
+
+// 토큰 수를 보기 좋은 문자열로 포맷 (예: 4200 → "4.2K")
+const fmtTokens = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
+
+// 사용률에 따른 색상 (초록/노랑/빨강)
+const tokenBarColor = (pct) => {
+  if (pct >= 85) return '#ef4444';
+  if (pct >= 55) return '#f59e0b';
+  return '#10a37f';
+};
+
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || '');
@@ -678,30 +716,54 @@ function App() {
           <span>새 채팅</span>
         </button>
         <div className="chat-history">
-          {chats.map(chat => (
-            <div 
-              key={chat.id} 
-              className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
-              onClick={() => {
-                setCurrentChatId(chat.id);
-                // 모바일이면 방 선택 후 메뉴 닫기
-                if (window.innerWidth <= 768) setIsSidebarOpen(false);
-              }}
-            >
-              <MessageSquare size={16} />
-              <span className="history-title">{chat.title}</span>
-              <button 
-                className="delete-chat-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setChats(chats.filter(c => c.id !== chat.id));
-                  if (currentChatId === chat.id) setCurrentChatId(null);
+          {chats.map(chat => {
+            const usedTokens = calcChatTokens(chat);
+            const maxTokens = CONTEXT_WINDOWS[chat.model] || 128000;
+            const pct = Math.min(100, (usedTokens / maxTokens) * 100);
+            const barColor = tokenBarColor(pct);
+            const modelLabel = MODELS.find(m => m.id === chat.model)?.name || 'Auto';
+            return (
+              <div
+                key={chat.id}
+                className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
+                onClick={() => {
+                  setCurrentChatId(chat.id);
+                  if (window.innerWidth <= 768) setIsSidebarOpen(false);
                 }}
               >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                <div className="history-item-top">
+                  <MessageSquare size={16} className="history-icon" />
+                  <span className="history-title">{chat.title}</span>
+                  <button
+                    className="delete-chat-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChats(chats.filter(c => c.id !== chat.id));
+                      if (currentChatId === chat.id) setCurrentChatId(null);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {chat.messages.length > 0 && (
+                  <div className="history-ctx-row">
+                    <div
+                      className="history-ctx-bar-bg"
+                      title={`컨텍스트: ~${fmtTokens(usedTokens)} / ${fmtTokens(maxTokens)} 토큰 (${pct.toFixed(1)}%) — ${modelLabel}`}
+                    >
+                      <div
+                        className="history-ctx-bar-fill"
+                        style={{ width: `${pct}%`, background: barColor }}
+                      />
+                    </div>
+                    <span className="history-ctx-label" style={{ color: barColor }}>
+                      {fmtTokens(usedTokens)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Story Bible (Fixed Context) Section */}
